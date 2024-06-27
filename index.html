@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Photo Collage Maker</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
+    <style>
+        body {
+            background: linear-gradient(to bottom right, #5f27cd, #341f97);
+            color: #fff;
+            margin: 0;
+            font-family: Arial, sans-serif;
+        }
+
+        .container {
+            max-width: 1200px;
+            padding: 20px;
+        }
+
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: -250px;
+            width: 250px;
+            height: 100%;
+            background-color: #343a40;
+            padding: 20px;
+            color: #fff;
+            transition: left 0.3s ease;
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .sidebar.open {
+            left: 0;
+        }
+
+        .sidebar h2 {
+            font-size: 1.5rem;
+            margin-bottom: 20px;
+            border-bottom: 1px solid #fff;
+            padding-bottom: 10px;
+        }
+
+        .sidebar .form-group {
+            margin-bottom: 20px;
+        }
+
+        .main-content {
+            margin-left: 250px;
+            padding: 20px;
+        }
+
+        #collage-container {
+            display: flex;
+            flex-wrap: wrap;
+            border: 2px solid #000;
+            padding: 10px;
+            background-color: rgba(255, 255, 255, 0.1);
+            position: relative;
+            min-height: 300px;
+            overflow: hidden; /* Ensure content does not overflow */
+            position: relative; /* Ensure overlays position correctly */
+        }
+
+        .collage-item {
+            margin: 5px;
+            max-width: 150px;
+            max-height: 150px;
+            object-fit: cover;
+            cursor: grab;
+            position: relative; /* Ensure correct positioning for overlays */
+        }
+
+        .text-overlay, .emoji-overlay {
+            position: absolute;
+            cursor: move;
+            background-color: rgba(255, 255, 255, 0.5);
+            padding: 5px;
+            border-radius: 5px;
+            resize: both;
+            overflow: auto;
+            z-index: 10; /* Ensure overlays are above images */
+        }
+
+        .emoji-overlay {
+            font-size: 2rem;
+        }
+
+        .text-input, .emoji-input {
+            margin-top: 10px;
+        }
+
+        .resize-handle {
+            position: absolute;
+            width: 10px;
+            height: 10px;
+            background-color: #fff;
+            border: 1px solid #000;
+            cursor: nwse-resize;
+        }
+
+        .resize-nw {
+            top: -5px;
+            left: -5px;
+        }
+
+        .resize-ne {
+            top: -5px;
+            right: -5px;
+        }
+
+        .resize-se {
+            bottom: -5px;
+            right: -5px;
+        }
+
+        .resize-sw {
+            bottom: -5px;
+            left: -5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar" id="sidebar">
+            <h2>Options</h2>
+            <div class="form-group">
+                <label for="layout">Choose Layout:</label>
+                <select id="layout" class="form-control">
+                    <option value="grid">Grid</option>
+                    <option value="random">Random</option>
+                    <option value="circle">Circle</option>
+                    <option value="heart">Heart</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="filter">Apply Filter:</label>
+                <select id="filter" class="form-control">
+                    <option value="none">None</option>
+                    <option value="grayscale">Grayscale</option>
+                    <option value="sepia">Sepia</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="rotate">Rotate:</label>
+                <select id="rotate" class="form-control">
+                    <option value="0">0°</option>
+                    <option value="90">90°</option>
+                    <option value="180">180°</option>
+                    <option value="270">270°</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="border">Border:</label>
+                <input type="color" id="border-color" class="form-control">
+            </div>
+            <div class="form-group">
+                <label for="background-color">Background Color:</label>
+                <input type="color" id="background-color" class="form-control">
+            </div>
+            <button id="create-collage" class="btn btn-primary btn-block">Create Collage</button>
+            <div class="form-group mt-4">
+                <label for="text-input">Add Text:</label>
+                <input type="text" id="text-input" class="form-control text-input" placeholder="Enter text">
+            </div>
+            <button id="add-text" class="btn btn-secondary btn-block">Add Text</button>
+            <div class="form-group mt-4">
+                <label for="emoji-input">Add Emoji:</label>
+                <input type="text" id="emoji-input" class="form-control emoji-input" placeholder="Enter emoji">
+            </div>
+            <button id="add-emoji" class="btn btn-secondary btn-block">Add Emoji</button>
+            <div class="mt-4">
+                <button id="download-collage" class="btn btn-success btn-block">Download Collage</button>
+                <button id="share-collage" class="btn btn-info btn-block">Share on Social Media</button>
+                <button id="save-collage" class="btn btn-warning btn-block">Save Collage</button>
+                <button id="load-collage" class="btn btn-dark btn-block">Load Collage</button>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <h1 class="text-center my-4">Advanced Photo Collage Maker</h1>
+            <div class="row mb-4">
+                <div class="col-md-6">
+                    <input type="file" id="upload" class="form-control" multiple accept="image/*">
+                    <small class="form-text text-muted">You can upload up to 20 images</small>
+                </div>
+                <div class="col-md-6">
+                    <button id="toggle-sidebar" class="btn btn-secondary btn-block">Toggle Options</button>
+                </div>
+            </div>
+            <div id="collage-container"></div>
+        </div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        const MAX_IMAGES = 20;
+        const uploadInput = document.getElementById('upload');
+        const createCollageButton = document.getElementById('create-collage');
+        const collageContainer = document.getElementById('collage-container');
+        const layoutSelect = document.getElementById('layout');
+        const filterSelect = document.getElementById('filter');
+        const rotateSelect = document.getElementById('rotate');
+        const borderColorInput = document.getElementById('border-color');
+        const backgroundColorInput = document.getElementById('background-color');
+        const downloadCollageButton = document.getElementById('download-collage');
+        const shareCollageButton = document.getElementById('share-collage');
+        const saveCollageButton = document.getElementById('save-collage');
+        const loadCollageButton = document.getElementById('load-collage');
+        const textInput = document.getElementById('text-input');
+        const addTextButton = document.getElementById('add-text');
+        const emojiInput = document.getElementById('emoji-input');
+        const addEmojiButton = document.getElementById('add-emoji');
+        const sidebar = document.getElementById('sidebar');
+        const toggleSidebarButton = document.getElementById('toggle-sidebar');
+
+        uploadInput.addEventListener('change', handleFiles);
+        createCollageButton.addEventListener('click', createCollage);
+        filterSelect.addEventListener('change', applyFilter);
+        rotateSelect.addEventListener('change', applyRotation);
+        borderColorInput.addEventListener('input', applyBorderColor);
+        backgroundColorInput.addEventListener('input', applyBackgroundColor);
+        downloadCollageButton.addEventListener('click', downloadCollage);
+        shareCollageButton.addEventListener('click', shareCollage);
+        saveCollageButton.addEventListener('click', saveCollage);
+        loadCollageButton.addEventListener('click', loadCollage);
+        addTextButton.addEventListener('click', addText);
+        addEmojiButton.addEventListener('click', addEmoji);
+        toggleSidebarButton.addEventListener('click', toggleSidebar);
+
+        function handleFiles(event) {
+            const files = event.target.files;
+            if (files.length > MAX_IMAGES) {
+                alert(`You can only upload up to ${MAX_IMAGES} images`);
+                uploadInput.value = ''; // Reset input
+                return;
+            }
+
+            const fileList = Array.from(files);
+            fileList.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (event) => {
+                    const img = document.createElement('img');
+                    img.src = event.target.result;
+                    img.classList.add('collage-item');
+                    img.style.border = `2px solid ${borderColorInput.value}`;
+                    img.style.filter = filterSelect.value;
+                    img.style.transform = `rotate(${rotateSelect.value}deg)`;
+                    img.draggable = true;
+
+                    // Create resize handles
+                    const resizeHandles = createResizeHandles(img);
+                    resizeHandles.forEach(handle => img.appendChild(handle));
+
+                    collageContainer.appendChild(img);
+                    img.addEventListener('mousedown', initiateCropper);
+                    img.addEventListener('dragstart', () => false); // Prevent default drag behavior
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function createResizeHandles(img) {
+            const handles = [];
+            const positions = ['nw', 'ne', 'se', 'sw'];
+
+            positions.forEach(position => {
+                const handle = document.createElement('div');
+                handle.classList.add('resize-handle', `resize-${position}`);
+                handle.addEventListener('mousedown', startResize);
+                handle.addEventListener('dragstart', () => false); // Prevent default drag behavior
+                img.appendChild(handle);
+                handles.push(handle);
+            });
+
+            return handles;
+        }
+
+        function startResize(event) {
+            const handle = event.target;
+            const img = handle.parentNode;
+
+            const startX = event.clientX;
+            const startY = event.clientY;
+            const startWidth = img.clientWidth;
+            const startHeight = img.clientHeight;
+
+            function handleResize(event) {
+                const width = startWidth + (event.clientX - startX);
+                const height = startHeight + (event.clientY - startY);
+
+                img.style.width = `${width}px`;
+                img.style.height = `${height}px`;
+            }
+
+            function stopResize() {
+                document.removeEventListener('mousemove', handleResize);
+                document.removeEventListener('mouseup', stopResize);
+            }
+
+            document.addEventListener('mousemove', handleResize);
+            document.addEventListener('mouseup', stopResize);
+        }
+
+        function initiateCropper(event) {
+            const img = event.target;
+            const cropper = new Cropper(img, {
+                aspectRatio: 1,
+                viewMode: 1,
+                ready() {
+                    const cropBoxData = cropper.getCropBoxData();
+                    const canvasData = cropper.getCanvasData();
+                    cropper.setCropBoxData(cropBoxData).setCanvasData(canvasData);
+                },
+                cropend() {
+                    const croppedCanvas = cropper.getCroppedCanvas();
+                    img.src = croppedCanvas.toDataURL();
+                    cropper.destroy();
+                }
+            });
+        }
+
+        function applyCircularLayout(images) {
+            const centerX = collageContainer.clientWidth / 2;
+            const centerY = collageContainer.clientHeight / 2;
+            const radius = Math.min(centerX, centerY) - 50;
+
+            images.forEach((img, index) => {
+                const angle = (index / images.length) * 2 * Math.PI;
+                const x = centerX + radius * Math.cos(angle) - img.width / 2;
+                const y = centerY + radius * Math.sin(angle) - img.height / 2;
+                img.style.position = 'absolute';
+                img.style.left = `${x}px`;
+                img.style.top = `${y}px`;
+            });
+        }
+
+        function applyHeartLayout(images) {
+            const centerX = collageContainer.clientWidth / 2;
+            const centerY = collageContainer.clientHeight / 2;
+            const scale = Math.min(centerX, centerY) / 20;
+
+            images.forEach((img, index) => {
+                const t = (index / images.length) * 2 * Math.PI;
+                const x = 16 * Math.sin(t) ** 3;
+                const y = -13 * Math.cos(t) + 5 * Math.cos(2 * t) + 2 * Math.cos(3 * t) + Math.cos(4 * t);
+                const posX = centerX + scale * x - img.width / 2;
+                const posY = centerY + scale * y - img.height / 2;
+                img.style.position = 'absolute';
+                img.style.left = `${posX}px`;
+                img.style.top = `${posY}px`;
+            });
+        }
+
+        function createCollage() {
+            const images = collageContainer.querySelectorAll('.collage-item');
+            if (images.length === 0) {
+                alert('Please upload images to create a collage.');
+                return;
+            }
+
+            // Reset styles
+            collageContainer.style.display = 'flex';
+            collageContainer.style.flexWrap = 'wrap';
+            images.forEach(img => {
+                img.style.position = 'static';
+            });
+
+            // Layout logic
+            switch (layoutSelect.value) {
+                case 'grid':
+                    collageContainer.style.display = 'grid';
+                    collageContainer.style.gridTemplateColumns = `repeat(auto-fill, minmax(100px, 1fr))`;
+                    collageContainer.style.gridGap = '10px';
+                    break;
+                case 'random':
+                    collageContainer.style.display = 'flex';
+                    collageContainer.style.flexWrap = 'wrap';
+                    images.forEach(img => {
+                        img.style.position = 'absolute';
+                        img.style.left = `${Math.random() * (collageContainer.clientWidth - img.width)}px`;
+                        img.style.top = `${Math.random() * (collageContainer.clientHeight - img.height)}px`;
+                    });
+                    break;
+                case 'circle':
+                    applyCircularLayout(images);
+                    break;
+                case 'heart':
+                    applyHeartLayout(images);
+                    break;
+                default:
+                    break;
+            }
+
+            applyFilter();
+            applyRotation();
+            applyBorderColor();
+            applyBackgroundColor();
+        }
+
+        function applyFilter() {
+            const images = collageContainer.querySelectorAll('.collage-item');
+            images.forEach(img => {
+                img.style.filter = filterSelect.value;
+            });
+        }
+
+        function applyRotation() {
+            const images = collageContainer.querySelectorAll('.collage-item');
+            images.forEach(img => {
+                img.style.transform = `rotate(${rotateSelect.value}deg)`;
+            });
+        }
+
+        function applyBorderColor() {
+            const images = collageContainer.querySelectorAll('.collage-item');
+            images.forEach(img => {
+                img.style.border = `2px solid ${borderColorInput.value}`;
+            });
+        }
+
+        function applyBackgroundColor() {
+            collageContainer.style.backgroundColor = backgroundColorInput.value;
+        }
+
+        function addText() {
+            const text = textInput.value;
+            if (text) {
+                const textDiv = document.createElement('div');
+                textDiv.classList.add('text-overlay');
+                textDiv.textContent = text;
+                textDiv.style.border = '1px solid #000';
+                collageContainer.appendChild(textDiv);
+                textInput.value = '';
+                textDiv.addEventListener('mousedown', dragElement);
+            }
+        }
+
+        function addEmoji() {
+            const emoji = emojiInput.value;
+            if (emoji) {
+                const emojiDiv = document.createElement('div');
+                emojiDiv.classList.add('emoji-overlay');
+                emojiDiv.textContent = emoji;
+                emojiDiv.style.border = '1px solid #000';
+                collageContainer.appendChild(emojiDiv);
+                emojiInput.value = '';
+                emojiDiv.addEventListener('mousedown', dragElement);
+            }
+        }
+
+        function dragElement(event) {
+            const element = event.target;
+            let shiftX = event.clientX - element.getBoundingClientRect().left;
+            let shiftY = event.clientY - element.getBoundingClientRect().top;
+
+            function moveAt(pageX, pageY) {
+                element.style.left = pageX - shiftX + 'px';
+                element.style.top = pageY - shiftY + 'px';
+            }
+
+            function onMouseMove(event) {
+                moveAt(event.pageX, event.pageY);
+            }
+
+            document.addEventListener('mousemove', onMouseMove);
+
+            element.onmouseup = function() {
+                document.removeEventListener('mousemove', onMouseMove);
+                element.onmouseup = null;
+            };
+
+            element.ondragstart = function() {
+                return false;
+            };
+        }
+
+        function toggleSidebar() {
+            sidebar.classList.toggle('open');
+        }
+
+        function downloadCollage() {
+            html2canvas(collageContainer).then(canvas => {
+                const link = document.createElement('a');
+                link.href = canvas.toDataURL();
+                link.download = 'collage.png';
+                link.click();
+            });
+        }
+
+        function shareCollage() {
+            html2canvas(collageContainer).then(canvas => {
+                canvas.toBlob(blob => {
+                    const file = new File([blob], 'collage.png', { type: 'image/png' });
+                    const data = {
+                        files: [file],
+                        title: 'Check out my collage!',
+                        text: 'I created this awesome collage using the Advanced Photo Collage Maker.'
+                    };
+                    if (navigator.canShare && navigator.canShare(data)) {
+                        navigator.share(data).catch(err => console.error('Sharing failed', err));
+                    } else {
+                        alert('Sharing not supported on this browser.');
+                    }
+                });
+            });
+        }
+
+        function saveCollage() {
+            const collageHTML = collageContainer.innerHTML;
+            localStorage.setItem('savedCollage', collageHTML);
+            alert('Collage saved!');
+        }
+
+        function loadCollage() {
+            const savedCollage = localStorage.getItem('savedCollage');
+            if (savedCollage) {
+                collageContainer.innerHTML = savedCollage;
+                const textOverlays = collageContainer.querySelectorAll('.text-overlay');
+                const emojiOverlays = collageContainer.querySelectorAll('.emoji-overlay');
+                textOverlays.forEach(textOverlay => textOverlay.addEventListener('mousedown', dragElement));
+                emojiOverlays.forEach(emojiOverlay => emojiOverlay.addEventListener('mousedown', dragElement));
+
+                const loadedImages = collageContainer.querySelectorAll('.collage-item');
+                loadedImages.forEach(img => {
+                    img.addEventListener('mousedown', initiateCropper);
+                    img.addEventListener('dragstart', () => false); // Prevent default drag behavior
+
+                    // Restore resize handles
+                    const resizeHandles = createResizeHandles(img);
+                    resizeHandles.forEach(handle => img.appendChild(handle));
+                });
+
+                alert('Collage loaded!');
+            } else {
+                alert('No saved collage found.');
+            }
+        }
+    </script>
+</body>
+</html>
+
+
